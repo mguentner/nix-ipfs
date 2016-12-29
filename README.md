@@ -1,95 +1,77 @@
-How to set up your own Hydra Server
-===================================
+IPFS Nix/Hydra Config
+=====================
 
-For those who enjoy watching technical screencasts, there's also a video about
-this subject available at https://www.youtube.com/watch?v=RXV0Y5Bn-QQ.
+Test Repository for IPFS in Nix together with Hydra
 
-This repository contains a complex'ish example configuration for the Nix-based
-continuous build system [Hydra](http://nixos.org/hydra/) that new users can use
-to get started. The file [`hydra-common.nix`](hydra-common.nix) defines basic
-properties of a VBox-based virtual machine running NixOS 16.03, which
-[`hydra-master.nix`](hydra-master.nix) extends to configure a running Hydra
-server. [`hydra-slave.nix`](hydra-slave.nix), on the other hand, configures a
-simple build slave for the main server to delegate build jobs to. Finally,
-[`hydra-network.nix`](hydra-network.nix) ties those modules together into a
-network definition for Nixops.
+For how to setup the network, checkout HYDRA_README.md
 
-To run these examples quickly with `nixops` on your local machine, you'll need
+If you want to use a IPFS-enabled nix, you can get it from
+here:
 
-- hardware virtualization support,
-- 8+ GB of memory,
-- [NixOS](http://nixos.org/) and [Nixops](http://nixos.org/nixops/) installed.
+https://github.com/mguentner/nix/tree/ipfs
 
-Also, your `configuration.nix` file should include:
+Cherry-pick this commit for the `nixIPFS` attribute:
 
-~~~~~
-  virtualisation.virtualbox.host.enable = true;
-~~~~~
+https://github.com/mguentner/nixpkgs/commit/fb5b00f994006efdc095067c50e0bd8aa7883054
 
-If those pre-conditions are met, follow these steps:
+If you want to deploy the network using `nixops`, you should use the same branch.
 
-1. Generate an SSH key used by the Hydra master server to authenticate itself
-    to the build slaves:
+Design
+======
 
-    ~~~~~ bash
-    $ ssh-keygen -C "hydra@hydra.example.org" -N "" -f id_buildfarm
-    ~~~~~
+I want to describe how I imagine the workflow to be.
 
-2. Set up your shell environment to use the `nixos-16.03` release for all
-    further commands:
+Machines
+--------
 
-    ~~~~~ bash
-    $ NIX_PATH="nixpkgs=https://github.com/nixos/nixpkgs-channels/archive/nixos-16.03.tar.gz"
-    $ export NIX_PATH
-    ~~~~~
+* a machine (A) from where `/nix/store` should be published to a binary cache
+* a second machine (B) which will act as a IPFS mirror
+* a third machine (C) which wants to use A/B as a binary cache
 
-3. Start the server:
+Workflow
+--------
 
-    ~~~~~ bash
-    $ nixops create -d hydra hydra-network.nix
-    $ nixops deploy -d hydra
-    ~~~~~
+On A, which could be a Hydra, a signed binary cache is being generated:
+```
+nix copy --to file:///var/www/example.org/cache?secret-key=/etc/nix/hydra.example.org-1/secret -r /nix/store/wkhdf9jinag5750mqlax6z2zbwhqb76n-hello-2.10/
+```
 
-4. Ensure that the main server knows the binary cache for `nixos-16.03`:
+Each `.nar` is being exported to a IPFS repository running on A.
+Code: https://github.com/mguentner/nix/blob/ipfs/src/libstore/binary-cache-store.cc#L265
+After the cache is complete a resulting `.narinfo` might look like this:
 
-    ~~~~~ bash
-    nixops ssh hydra -- nix-channel --update
-    ~~~~~
+```
+StorePath: /nix/store/8lbpq1vmajrbnc96xhv84r87fa4wvfds-glibc-2.24
+URL: nar/0xpvq515qjb8p4596n3910jwv5wli2vv83bgndrja47m8s42n1fy.nar.xz
+Compression: xz
+FileHash: sha256:0xpvq515qjb8p4596n3910jwv5wli2vv83bgndrja47m8s42n1fy
+FileSize: 5527852
+NarHash: sha256:0bl38619jq6p2jqk0xjz8rkgdvs0ljvzc71jmha7mh5r1xix375g
+NarSize: 20742128
+References: 8lbpq1vmajrbnc96xhv84r87fa4wvfds-glibc-2.24
+Deriver: n9j6dbab59jcm9wic0g44xw8gcm32vxb-glibc-2.24.drv
+Sig: hydra.example.org-1:eVg2Xe22OpwnAB6Baw022lWvTSbB7cAWDBcLn9bTpSOJmozzk3FS0SVLdeEkoVZn55xZ78Y07XUL5RMEcXniCA==
+IPFSHash: QmP9DgJMhdVce6xMT2vG1TbAsQozLgUUssPu2QM4norkzw
+```
 
-If all these steps completed without errors, then `nixops info -d hydra` will tell you
-the IP address of the new machine(s). For example, let's say that the `hydra`
-machine got assigned the address `192.168.56.101`. Then go to
-`http://192.168.56.101:8080/` to access the web front-end and sign in with the
-username "`alice`" and password "`foobar`".
+Please note how the IPFSHash is signed by the Hydra.
 
-Now you are ready to create projects and jobsets the repository contains the
-following examples that you can use:
+The IPFS repository on A should be periodically cleaned in order to free space. This, 
+however would make the hash inaccessible. That's why everything is mirrored on B using
+`ipfs-mirror-push.py`
 
-- [`jobset-nixpkgs.nix`](jobset-nixpkgs.nix)
-- [`jobset-libfastcgi.nix`](jobset-libfastcgi.nix)
-- [`jobset-jailbreak-cabal.nix`](jobset-jailbreak-cabal.nix)
+Now on A, this can be executed
 
-The last jobset performs several Haskell builds that may be quite expensive, so
-it's probably wise *not* to run that on virtual hardware but only on a real
-sever.
+```
+python3 ipfs-mirror-push.py --ssh admin@B --path /var/www/example.org/cache
+```
 
-Miscellaneous topics
---------------------
+The script will collect all IPFS hashes from the `.narinfo` files in
+`/var/www/example.org/cache` and download them on B, thus making them
+available.
 
-- How to [disable binary substitutions](https://github.com/NixOS/hydra/commit/82504fe01084f432443c121614532d29c781082a)
-   for higher evaluation performance.
-
-
-- How to run emergency garbage collections:
-
-    ~~~~~ bash
-    $ systemctl start hydra-update-gc-roots.service
-    $ systemctl start nix-gc.service
-    ~~~~~
-
-- "Shares" are interpreted as follows: each jobset has a "fraction", which is
-   its number of shares divided by the total number of shares. The queue runner
-   records how much time a jobset has used over the last day as a fraction of
-   the total time and then jobsets are ordered by their allocated fraction
-   divided by the fraction of time used i.e. jobsets that have used less of
-   their allotment are prioritized.
+If C now uses A as binary cache, it will first download the `.narinfo` using HTTP
+and find a `IPFSHash` inside it.
+Instead of downloading this file using HTTP, it will be downloaded using IPFS.
+If no local IPFS daemon should be used, a IPFS Gateway can be used on C.
+Code: https://github.com/mguentner/nix/blob/ipfs/src/libstore/binary-cache-store.cc#L313
