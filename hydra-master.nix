@@ -1,20 +1,8 @@
 # hydra-master.nix
 
 { config, pkgs, ... }:
-
-let
-
-  hydraSrc = builtins.fetchTarball https://github.com/nixos/hydra/archive/master.tar.gz;
-
-in
 {
-
-  imports = [ ./hydra-common.nix "${hydraSrc}/hydra-module.nix" ];
-
-  assertions = pkgs.lib.singleton {
-    assertion = pkgs.system == "x86_64-linux";
-    message = "unsupported system ${pkgs.system}";
-  };
+  imports = [ ./hydra-common.nix ];
 
   environment.etc = pkgs.lib.singleton {
     target = "nix/id_buildfarm";
@@ -24,9 +12,10 @@ in
     mode = "0440";
   };
 
-  networking.firewall.allowedTCPPorts = [ config.services.hydra.port ];
+  networking.firewall.allowedTCPPorts = [ config.services.hydra.port 80 4001 ];
 
   nix = {
+    package = pkgs.nixIPFS;
     distributedBuilds = true;
     buildMachines = [
       { hostName = "slave1"; maxJobs = 1; speedFactor = 1; sshKey = "/etc/nix/id_buildfarm"; sshUser = "root"; system = "x86_64-linux"; }
@@ -39,13 +28,30 @@ in
     hydraURL = "http://hydra.example.org";
     notificationSender = "hydra@example.org";
     port = 8080;
-    extraConfig = "binary_cache_secret_key_file = /etc/nix/hydra.example.org-1/secret";
+    extraConfig = "store-uri = file:///nix/store?secret-key=/etc/nix/hydra.example.org-1/secret";
     buildMachinesFiles = [ "/etc/nix/machines" ];
   };
 
   services.postgresql = {
-    package = pkgs.postgresql94;
+    enable = true;
     dataDir = "/var/db/postgresql-${config.services.postgresql.package.psqlSchema}";
+  };
+
+  services.ipfs = {
+    enable = true;
+    # The Gateway normally listens on 8080
+    gatewayAddress = "/ip4/127.0.0.1/tcp/9090";
+  };
+
+  services.nginx = {
+    enable = true;
+    recommendedTlsSettings = true;
+    virtualHosts = {
+      "cache.example.org" = {
+        root = "/var/www/example.org/cache/";
+        default = true;
+      };
+    };
   };
 
   systemd.services.hydra-manual-setup = {
@@ -66,15 +72,11 @@ in
         /run/current-system/sw/bin/chown -R hydra:hydra /etc/nix/hydra.example.org-1
         /run/current-system/sw/bin/chmod 440 /etc/nix/hydra.example.org-1/secret
         /run/current-system/sw/bin/chmod 444 /etc/nix/hydra.example.org-1/public
+        mkdir -p /var/www/example.org/cache
         # done
         touch ~hydra/.setup-is-complete
       fi
     '';
   };
-
-  users.users.hydra-www.uid = config.ids.uids.hydra-www;
-  users.users.hydra-queue-runner.uid = config.ids.uids.hydra-queue-runner;
-  users.users.hydra.uid = config.ids.uids.hydra;
-  users.groups.hydra.gid = config.ids.gids.hydra;
 
 }

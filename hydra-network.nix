@@ -6,5 +6,6 @@
 
   hydra = import ./hydra-master.nix;
   slave1 = import ./hydra-slave.nix;
+  ipfsgw = import ./ipfs-gateway.nix;
 
 }
