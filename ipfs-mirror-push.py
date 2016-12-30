@@ -27,7 +27,7 @@ print("Exporting Hashes to Mirror...")
 
 for ipfsHash in ipfsHashes:
     getCommand = "sh -c 'ipfs --api /ip4/127.0.0.1/tcp/5001 cat {}' > /dev/null"
-    conn = subprocess.Popen(["ssh", "%s" % args.ssh, getCommand.format(ipfsHash, ipfsHash)],
+    conn = subprocess.Popen(["ssh", "%s" % args.ssh, getCommand.format(ipfsHash)],
                             shell=False,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
