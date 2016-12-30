@@ -26,14 +26,11 @@ for narinfo_file in narinfo_files:
 print("Exporting Hashes to Mirror...")
 
 for ipfsHash in ipfsHashes:
-    getCommand = "ipfs --api /ip4/127.0.0.1/tcp/5001 get {}"
-    conn = subprocess.Popen(["ssh", "%s" % args.ssh, getCommand.format(ipfsHash)],
+    getCommand = "sh -c 'ipfs --api /ip4/127.0.0.1/tcp/5001 cat {}' > /dev/null"
+    conn = subprocess.Popen(["ssh", "%s" % args.ssh, getCommand.format(ipfsHash, ipfsHash)],
                             shell=False,
                             stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE)
-    res = conn.stdout.readlines()
-    if res == []:
+    res = conn.stderr.readlines()
+    if res != []:
         print("SSH Command failed with {}".format(conn.stderr.readlines()))
-        exit(1)
-    else:
-        print("SSH Command result {}".format(res))
