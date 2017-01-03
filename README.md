@@ -33,7 +33,7 @@ Workflow
 
 On A, which could be a Hydra, a signed binary cache is being generated:
 ```
-nix copy --to file:///var/www/example.org/cache?secret-key=/etc/nix/hydra.example.org-1/secret -r /nix/store/wkhdf9jinag5750mqlax6z2zbwhqb76n-hello-2.10/
+nix copy --to file:///var/www/example.org/cache?secret-key=/etc/nix/hydra.example.org-1/secret\&compression=none\&publish-to-ipfs=1 -r /nix/store/wkhdf9jinag5750mqlax6z2zbwhqb76n-hello-2.10/
 ```
 
 Each `.nar` is being exported to a IPFS repository running on A.
