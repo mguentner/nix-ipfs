@@ -36,22 +36,23 @@ On A, which could be a Hydra, a signed binary cache is being generated:
 nix copy --to file:///var/www/example.org/cache?secret-key=/etc/nix/hydra.example.org-1/secret\&compression=none\&publish-to-ipfs=1 -r /nix/store/wkhdf9jinag5750mqlax6z2zbwhqb76n-hello-2.10/
 ```
 
-Each `.nar` is being exported to a IPFS repository running on A.
-Code: https://github.com/mguentner/nix/blob/ipfs/src/libstore/binary-cache-store.cc#L265
+Each `.nar` is being exported to a IPFS repository running on A. The `compression` is set to `none` to make
+deduplication in IPFS possible.
+Code: https://github.com/mguentner/nix/blob/ipfs/src/libstore/binary-cache-store.cc#L259
 After the cache is complete a resulting `.narinfo` might look like this:
 
 ```
 StorePath: /nix/store/8lbpq1vmajrbnc96xhv84r87fa4wvfds-glibc-2.24
-URL: nar/0xpvq515qjb8p4596n3910jwv5wli2vv83bgndrja47m8s42n1fy.nar.xz
-Compression: xz
-FileHash: sha256:0xpvq515qjb8p4596n3910jwv5wli2vv83bgndrja47m8s42n1fy
-FileSize: 5527852
+URL: nar/0bl38619jq6p2jqk0xjz8rkgdvs0ljvzc71jmha7mh5r1xix375g.nar
+Compression: none
+FileHash: sha256:0bl38619jq6p2jqk0xjz8rkgdvs0ljvzc71jmha7mh5r1xix375g
+FileSize: 20742128
 NarHash: sha256:0bl38619jq6p2jqk0xjz8rkgdvs0ljvzc71jmha7mh5r1xix375g
 NarSize: 20742128
 References: 8lbpq1vmajrbnc96xhv84r87fa4wvfds-glibc-2.24
 Deriver: n9j6dbab59jcm9wic0g44xw8gcm32vxb-glibc-2.24.drv
 Sig: hydra.example.org-1:eVg2Xe22OpwnAB6Baw022lWvTSbB7cAWDBcLn9bTpSOJmozzk3FS0SVLdeEkoVZn55xZ78Y07XUL5RMEcXniCA==
-IPFSHash: QmP9DgJMhdVce6xMT2vG1TbAsQozLgUUssPu2QM4norkzw
+IPFSHash: QmNu8CKWDm5nKfmLjQQNRdaKgYxfLG5fCYU2gyrgNhDEbU
 ```
 
 Please note how the IPFSHash is signed by the Hydra.
@@ -74,4 +75,4 @@ If C now uses A as binary cache, it will first download the `.narinfo` using HTT
 and find a `IPFSHash` inside it.
 Instead of downloading this file using HTTP, it will be downloaded using IPFS.
 If no local IPFS daemon should be used, a IPFS Gateway can be used on C.
-Code: https://github.com/mguentner/nix/blob/ipfs/src/libstore/binary-cache-store.cc#L313
+Code: https://github.com/mguentner/nix/blob/ipfs/src/libstore/binary-cache-store.cc#L316
