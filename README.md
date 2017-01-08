@@ -55,7 +55,10 @@ Sig: hydra.example.org-1:eVg2Xe22OpwnAB6Baw022lWvTSbB7cAWDBcLn9bTpSOJmozzk3FS0SV
 IPFSHash: QmNu8CKWDm5nKfmLjQQNRdaKgYxfLG5fCYU2gyrgNhDEbU
 ```
 
-Please note how the IPFSHash is signed by the Hydra.
+The IPFSHash is not signed through the signed fingerprint (`Sig:`), however once
+the file behind `IPFSHash` has been fetched completely it will be validated
+against `NarHash` which is part of the fingerprint.
+Relevant Code: https://github.com/NixOS/nix/blob/215b70f51e5abd350c9b7db656aedac9d96d0046/src/libstore/store-api.cc#L523
 
 The IPFS repository on A should be periodically cleaned in order to free space. This, 
 however would make the hash inaccessible. That's why everything is mirrored on B using
