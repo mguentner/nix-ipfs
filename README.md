@@ -12,7 +12,7 @@ https://github.com/mguentner/nix/tree/ipfs
 
 Cherry-pick this commit for the `nixIPFS` attribute:
 
-https://github.com/mguentner/nixpkgs/commit/fb5b00f994006efdc095067c50e0bd8aa7883054
+https://github.com/mguentner/nixpkgs/commit/d5ea24ebd885d693ea4fa3ad1150fc75b5303c64
 
 If you want to deploy the network using `nixops`, you should use the same branch.
 
